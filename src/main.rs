@@ -485,7 +485,6 @@ extern "C" {
     fn ioctl(fd: i32, request: u64, ...) -> i32;
 }
 fn get_terminal_width() -> usize {
-    const TIOCGWINSZ: u64 = 0x40087468;
     #[repr(C)]
     struct Winsize {
         ws_row: u16,
@@ -499,11 +498,13 @@ fn get_terminal_width() -> usize {
         ws_xpixel: 0,
         ws_ypixel: 0,
     };
-    let fds = [0, 1, 2];
-    for fd in &fds {
-        match unsafe { ioctl(*fd, TIOCGWINSZ, &mut size) } {
-            -1 => continue,
-            _ => break,
+    // 0x40087468 for glibc , 0x005413 for musl
+    for s in [0x40087468u64, 0x005413u64] {
+        for fd in [0, 1, 2] {
+            match unsafe { ioctl(fd, s, &mut size) } {
+                0 => break,
+                _ => continue,
+            }
         }
     }
     size.ws_col as usize
