@@ -221,15 +221,15 @@ impl LineParser {
     }
     fn parse(&mut self, s: &str) -> bool {
         let mut l = Line::new(s);
-        let Some(remote_addr)=l.parse_remote_addr()else{println!("1");return false;};
-        let Some(remote_user)=l.parse_remote_user()else{println!("2");return false;};
-        let Some(time_local)=l.parse_time_local()else{println!("3");return false;};
-        let Some(request_line)=l.parse_request_line()else{println!("4");return false;};
-        let Some(status_code)=l.parse_status_code()else{println!("5");return false;};
-        let Some(body_bytes_sent)=l.parse_body_bytes_sent()else{println!("6");return false;};
-        let Some(http_referer)=l.parse_http_referer()else{println!("7");return false;};
-        let Some(http_user_agent)=l.parse_http_user_agent()else{println!("8");return false;};
-        let Some(http_x_forwarded_for)=l.parse_http_x_forwarded_for()else{println!("9");return false;};
+        let Some(remote_addr)=l.parse_remote_addr()else{return false;};
+        let Some(remote_user)=l.parse_remote_user()else{return false;};
+        let Some(time_local)=l.parse_time_local()else{return false;};
+        let Some(request_line)=l.parse_request_line()else{return false;};
+        let Some(status_code)=l.parse_status_code()else{return false;};
+        let Some(body_bytes_sent)=l.parse_body_bytes_sent()else{return false;};
+        let Some(http_referer)=l.parse_http_referer()else{return false;};
+        let Some(http_user_agent)=l.parse_http_user_agent()else{return false;};
+        let Some(http_x_forwarded_for)=l.parse_http_x_forwarded_for()else{return false;};
 
         let body_bytes_sent = body_bytes_sent.parse::<usize>().unwrap();
 
@@ -520,7 +520,7 @@ fn main() -> std::io::Result<()> {
             continue;
         };
         if !parser.parse(&a) {
-            eprintln!("[[[{}]]]]", &a);
+            eprintln!("{}", &a);
         }
     }
     let printer = InfoPrinter::new(parser);
