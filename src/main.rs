@@ -44,29 +44,6 @@ fn not_space(x: u8, _y: u8, _z: u8) -> bool {
     return x != 32;
 }
 
-fn quote_string_end() -> impl FnMut(u8, u8, u8) -> bool {
-    let mut quote_count = 0;
-    move |x: u8, _y: u8, _z: u8| -> bool {
-        if x == 34 {
-            quote_count += 1;
-        }
-        return !(x == 34 && quote_count == 2);
-    }
-}
-
-fn req_line_end() -> impl FnMut(u8, u8, u8) -> bool {
-    let mut space_count = 0;
-    move |x: u8, y: u8, z: u8| -> bool {
-        if x == 32 {
-            space_count += 1;
-        }
-        if space_count > 2 {
-            return false;
-        }
-        return !(x == 34 && y == 32 && (z == 49 || z == 48));
-    }
-}
-
 struct Line<'a> {
     index: usize,
     origin: &'a str,
@@ -84,24 +61,24 @@ impl<'a> Line<'a> {
         }
     }
 
-    fn parse_item_trim_space<F>(
-        &mut self,
-        mut cond: F,
-        strip_square: bool,
-        result_strip_left_quote: bool,
-    ) -> Option<String>
+    fn parse_item_trim_space<F>(&mut self, mut cond: F, strip_square: bool) -> Option<String>
     where
         F: FnMut(u8, u8, u8) -> bool,
     {
         let text = self.text;
+        let mut i = self.index;
+        while i < self.len {
+            let x = text[i];
+            if x == 32 || (strip_square && x == 91) {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+        self.index = i;
         let mut v = None;
         let mut found_start: i32 = -1;
         let mut found_end: usize = 0;
-        self.index += text[self.index..]
-            .iter()
-            .take_while(|&&x| x == 32 || (strip_square && x == 91))
-            .count();
-        let mut i = self.index;
         while i < self.len {
             let x = text[i];
             i += 1;
@@ -115,82 +92,98 @@ impl<'a> Line<'a> {
                 if i < self.len {
                     continue;
                 }
-            } else {
-                if found_start < 0 {
-                    // 没有匹配到
-                    return v;
-                }
-                if result_strip_left_quote {
-                    while (found_start as usize) < found_end {
-                        if text[found_start as usize] == 34 {
-                            found_start += 1;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                v = Some(self.origin[found_start as usize..(found_end + 1)].into());
-                if i >= self.len {
-                    if found_end == self.len - 1 || x == 32 {
-                        // 字符串已完全遍历
-                        self.index = self.len;
-                    } else {
-                        self.index = found_end + 1;
-                    }
-                } else {
-                    self.index = i + text[i..]
-                        .iter()
-                        .take_while(|&&x| x == 32 || (strip_square && x == 93))
-                        .count();
-                }
+            }
+            if found_start < 0 {
+                // 没有匹配到
                 return v;
             }
+            v = Some(self.origin[found_start as usize..(found_end + 1)].into());
+            while i < self.len {
+                let x = text[i];
+                if x == 32 || (strip_square && x == 93) {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+            self.index = i;
+            return v;
         }
         v
     }
 
+    fn parse_item_quote_string(&mut self) -> Option<String> {
+        let mut quote_start: i32 = -1;
+        let mut i = self.index;
+        let mut v = None;
+        while i < self.len {
+            if quote_start < 0 {
+                if self.text[i] == 32 {
+                    i += 1;
+                    continue;
+                } else if self.text[i] == 34 {
+                    quote_start = i as i32;
+                    i += 1;
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            if self.text[i] == 34 {
+                v = Some(self.origin[(quote_start + 1) as usize..i].into());
+                i += 1;
+                break;
+            } else {
+                i += 1;
+            }
+        }
+        self.index = i;
+        v
+    }
+
     fn parse_remote_addr(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital_dot_colon, false, false);
+        return self.parse_item_trim_space(digital_dot_colon, false);
     }
 
     fn parse_remote_user(&mut self) -> Option<String> {
-        self.index += self.text[self.index..]
-            .iter()
-            .take_while(|&&x| x == 45)
-            .count();
-        return self.parse_item_trim_space(not_space, false, false);
+        let mut i = self.index;
+        while i < self.len {
+            if self.text[i] == 45 {
+                i += 1;
+            } else {
+                break;
+            }
+        }
+        self.index = i;
+        return self.parse_item_trim_space(not_space, false);
     }
 
     fn parse_time_local(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(square_right_space, true, false);
+        return self.parse_item_trim_space(square_right_space, true);
     }
 
     fn parse_request_line(&mut self) -> Option<String> {
-        // 当前字符是双引号，下个字符是空格，上个字符是http版本,并且只能包含2个空格
-        return self.parse_item_trim_space(req_line_end(), false, true);
+        return self.parse_item_quote_string();
     }
 
     fn parse_status_code(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital, false, false);
+        return self.parse_item_trim_space(digital, false);
     }
 
     fn parse_body_bytes_sent(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital, false, false);
+        return self.parse_item_trim_space(digital, false);
     }
 
     fn parse_http_referer(&mut self) -> Option<String> {
-        // 包含2个双引号，匹配到第二个双引号结束
-        return self.parse_item_trim_space(quote_string_end(), false, true);
+        return self.parse_item_quote_string();
     }
 
     fn parse_http_user_agent(&mut self) -> Option<String> {
-        // 包含2个双引号，匹配到第二个双引号结束
-        return self.parse_item_trim_space(quote_string_end(), false, true);
+        return self.parse_item_quote_string();
     }
 
     fn parse_http_x_forwarded_for(&mut self) -> Option<String> {
-        // 包含2个双引号，匹配到第二个双引号结束
-        return self.parse_item_trim_space(quote_string_end(), false, true);
+        return self.parse_item_quote_string();
     }
 }
 
@@ -228,15 +221,15 @@ impl LineParser {
     }
     fn parse(&mut self, s: &str) -> bool {
         let mut l = Line::new(s);
-        let Some(remote_addr)=l.parse_remote_addr()else{return false;};
-        let Some(remote_user)=l.parse_remote_user()else{return false;};
-        let Some(time_local)=l.parse_time_local()else{return false;};
-        let Some(request_line)=l.parse_request_line()else{return false;};
-        let Some(status_code)=l.parse_status_code()else{return false;};
-        let Some(body_bytes_sent)=l.parse_body_bytes_sent()else{return false;};
-        let Some(http_referer)=l.parse_http_referer()else{return false;};
-        let Some(http_user_agent)=l.parse_http_user_agent()else{return false;};
-        let Some(http_x_forwarded_for)=l.parse_http_x_forwarded_for()else{return false;};
+        let Some(remote_addr)=l.parse_remote_addr()else{println!("1");return false;};
+        let Some(remote_user)=l.parse_remote_user()else{println!("2");return false;};
+        let Some(time_local)=l.parse_time_local()else{println!("3");return false;};
+        let Some(request_line)=l.parse_request_line()else{println!("4");return false;};
+        let Some(status_code)=l.parse_status_code()else{println!("5");return false;};
+        let Some(body_bytes_sent)=l.parse_body_bytes_sent()else{println!("6");return false;};
+        let Some(http_referer)=l.parse_http_referer()else{println!("7");return false;};
+        let Some(http_user_agent)=l.parse_http_user_agent()else{println!("8");return false;};
+        let Some(http_x_forwarded_for)=l.parse_http_x_forwarded_for()else{println!("9");return false;};
 
         let body_bytes_sent = body_bytes_sent.parse::<usize>().unwrap();
 
@@ -527,7 +520,7 @@ fn main() -> std::io::Result<()> {
             continue;
         };
         if !parser.parse(&a) {
-            eprintln!("{}", &a);
+            eprintln!("[[[{}]]]]", &a);
         }
     }
     let printer = InfoPrinter::new(parser);
