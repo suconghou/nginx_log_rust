@@ -214,7 +214,7 @@ impl LineParser {
             http_user_agent_data: HashMap::with_capacity(8192),
             http_x_forwarded_for_data: HashMap::with_capacity(2048),
             http_sent_data: HashMap::with_capacity(16384),
-            http_bad_code_data: HashMap::new(),
+            http_bad_code_data: HashMap::with_capacity(64),
             total_bytes_sent: 0,
             total_lines: 0,
         }
@@ -254,7 +254,7 @@ impl LineParser {
         if status_code != "200" {
             self.http_bad_code_data
                 .entry(status_code.clone())
-                .or_insert_with(HashMap::new)
+                .or_insert_with(|| HashMap::with_capacity(1024))
                 .entry(request_line.clone())
                 .and_modify(|v| *v += 1)
                 .or_insert(1);
