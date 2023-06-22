@@ -5,42 +5,32 @@ use std::io::{prelude::*, stdin, BufReader};
 use std::string::String;
 
 // 仅数字
-fn digital(x: u8, _y: u8, _z: u8) -> bool {
+fn digital(x: u8, _y: u8) -> bool {
     return x >= 48 && x <= 57;
 }
 
 // 包含数字和.号
-fn digital_dot(x: u8, _y: u8, _z: u8) -> bool {
+fn digital_dot(x: u8, _y: u8) -> bool {
     return (x >= 48 && x <= 57) || x == 46;
 }
 
 // 包含数字字母和.号或:号（IPv4或IPv6）
-fn digital_dot_colon(x: u8, _y: u8, _z: u8) -> bool {
+fn digital_dot_colon(x: u8, _y: u8) -> bool {
     return (x >= 48 && x <= 58) || x == 46 || (x >= 97 && x <= 122);
 }
 
 // 包含数字和.号或-号
-fn digital_dot_minus(x: u8, _y: u8, _z: u8) -> bool {
+fn digital_dot_minus(x: u8, _y: u8) -> bool {
     return (x >= 48 && x <= 57) || x == 46 || x == 45;
 }
 
-// 匹配到],并且下一个是空格
-fn square_right_space(x: u8, y: u8, _z: u8) -> bool {
-    return !(x == 93 && y == 32);
-}
-
-// 当前字符是空格，上个字符是字母,不包含空格
-fn string_end(x: u8, _y: u8, z: u8) -> bool {
-    return !(x == 32 && ((z >= 65 && z <= 90) || (z >= 97 && z <= 122)));
-}
-
 // 当前是空格，上一个是-或者数字
-fn digital_or_none_end(x: u8, _y: u8, z: u8) -> bool {
-    return !(x == 32 && ((z >= 48 && z <= 57) || z == 45));
+fn digital_or_none_end(x: u8, y: u8) -> bool {
+    return !(x == 32 && ((y >= 48 && y <= 57) || y == 45));
 }
 
 // 非空格
-fn not_space(x: u8, _y: u8, _z: u8) -> bool {
+fn not_space(x: u8, _y: u8) -> bool {
     return x != 32;
 }
 
@@ -61,15 +51,15 @@ impl<'a> Line<'a> {
         }
     }
 
-    fn parse_item_trim_space<F>(&mut self, mut cond: F, strip_square: bool) -> Option<String>
+    fn parse_item_trim_space<F>(&mut self, cond: F) -> Option<String>
     where
-        F: FnMut(u8, u8, u8) -> bool,
+        F: Fn(u8, u8) -> bool,
     {
         let text = self.text;
         let mut i = self.index;
         while i < self.len {
             let x = text[i];
-            if x == 32 || (strip_square && x == 91) {
+            if x == 32 {
                 i += 1;
             } else {
                 break;
@@ -82,9 +72,8 @@ impl<'a> Line<'a> {
         while i < self.len {
             let x = text[i];
             i += 1;
-            let y = if i < self.len { text[i] } else { 0 };
-            let z = if i >= 2 { text[i - 2] } else { 0 };
-            if cond(x, y, z) {
+            let y = if i >= 2 { text[i - 2] } else { 0 };
+            if cond(x, y) {
                 found_end = i - 1;
                 if found_start < 0 {
                     found_start = found_end as i32;
@@ -100,7 +89,7 @@ impl<'a> Line<'a> {
             v = Some(self.origin[found_start as usize..(found_end + 1)].into());
             while i < self.len {
                 let x = text[i];
-                if x == 32 || (strip_square && x == 93) {
+                if x == 32 {
                     i += 1;
                 } else {
                     break;
@@ -112,37 +101,29 @@ impl<'a> Line<'a> {
         v
     }
 
-    fn parse_item_quote_string(&mut self) -> Option<String> {
-        let mut quote_start: i32 = -1;
+    fn parse_item_wrap_string(&mut self, left: u8, right: u8) -> Option<String> {
         let mut i = self.index;
-        let mut v = None;
         while i < self.len {
-            if quote_start < 0 {
-                if self.text[i] == 32 {
-                    i += 1;
-                    continue;
-                } else if self.text[i] == 34 {
-                    quote_start = i as i32;
-                    i += 1;
-                    continue;
-                } else {
+            if self.text[i] == 32 {
+                i += 1;
+                continue;
+            } else if self.text[i] == left {
+                i += 1;
+                let Some(end) = self.text[i..].iter().position(|&b|b==right) else {
                     break;
-                }
-            }
-            if self.text[i] == 34 {
-                v = Some(self.origin[(quote_start + 1) as usize..i].into());
-                i += 1;
-                break;
+                };
+                self.index = i + end + 1;
+                return Some(self.origin[i..self.index - 1].into());
             } else {
-                i += 1;
+                break;
             }
         }
         self.index = i;
-        v
+        None
     }
 
     fn parse_remote_addr(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital_dot_colon, false);
+        return self.parse_item_trim_space(digital_dot_colon);
     }
 
     fn parse_remote_user(&mut self) -> Option<String> {
@@ -155,35 +136,35 @@ impl<'a> Line<'a> {
             }
         }
         self.index = i;
-        return self.parse_item_trim_space(not_space, false);
+        return self.parse_item_trim_space(not_space);
     }
 
     fn parse_time_local(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(square_right_space, true);
+        return self.parse_item_wrap_string(91, 93);
     }
 
     fn parse_request_line(&mut self) -> Option<String> {
-        return self.parse_item_quote_string();
+        return self.parse_item_wrap_string(34, 34);
     }
 
     fn parse_status_code(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital, false);
+        return self.parse_item_trim_space(digital);
     }
 
     fn parse_body_bytes_sent(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital, false);
+        return self.parse_item_trim_space(digital);
     }
 
     fn parse_http_referer(&mut self) -> Option<String> {
-        return self.parse_item_quote_string();
+        return self.parse_item_wrap_string(34, 34);
     }
 
     fn parse_http_user_agent(&mut self) -> Option<String> {
-        return self.parse_item_quote_string();
+        return self.parse_item_wrap_string(34, 34);
     }
 
     fn parse_http_x_forwarded_for(&mut self) -> Option<String> {
-        return self.parse_item_quote_string();
+        return self.parse_item_wrap_string(34, 34);
     }
 }
 
