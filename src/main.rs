@@ -57,23 +57,19 @@ impl<'a> Line<'a> {
     {
         let text = self.text;
         let mut i = self.index;
-        while i < self.len {
-            let x = text[i];
-            if x == 32 {
-                i += 1;
-            } else {
-                break;
-            }
+        while i < self.len && text[i] == 32 {
+            i += 1;
         }
         self.index = i;
         let mut v = None;
         let mut found_start: i32 = -1;
         let mut found_end: usize = 0;
+        let mut y = if i > 0 { text[i - 1] } else { 0 };
         while i < self.len {
             let x = text[i];
             i += 1;
-            let y = if i >= 2 { text[i - 2] } else { 0 };
             if cond(x, y) {
+                y = x;
                 found_end = i - 1;
                 if found_start < 0 {
                     found_start = found_end as i32;
@@ -87,13 +83,8 @@ impl<'a> Line<'a> {
                 return v;
             }
             v = Some(self.origin[found_start as usize..(found_end + 1)].into());
-            while i < self.len {
-                let x = text[i];
-                if x == 32 {
-                    i += 1;
-                } else {
-                    break;
-                }
+            while i < self.len && text[i] == 32 {
+                i += 1;
             }
             self.index = i;
             return v;
@@ -103,23 +94,18 @@ impl<'a> Line<'a> {
 
     fn parse_item_wrap_string(&mut self, left: u8, right: u8) -> Option<String> {
         let mut i = self.index;
-        while i < self.len {
-            if self.text[i] == 32 {
-                i += 1;
-                continue;
-            } else if self.text[i] == left {
-                i += 1;
-                let Some(end) = self.text[i..].iter().position(|&b|b==right) else {
-                    break;
-                };
-                self.index = i + end + 1;
-                return Some(self.origin[i..self.index - 1].into());
-            } else {
-                break;
-            }
+        while i < self.len && self.text[i] == 32 {
+            i += 1;
         }
-        self.index = i;
-        None
+        if i >= self.len || self.text[i] != left {
+            return None;
+        }
+        i += 1;
+        let Some(end) = self.text[i..].iter().position(|&b|b==right) else {
+            return None;
+        };
+        self.index = i + end + 1;
+        return Some(self.origin[i..self.index - 1].into());
     }
 
     fn parse_remote_addr(&mut self) -> Option<String> {
@@ -128,12 +114,8 @@ impl<'a> Line<'a> {
 
     fn parse_remote_user(&mut self) -> Option<String> {
         let mut i = self.index;
-        while i < self.len {
-            if self.text[i] == 45 {
-                i += 1;
-            } else {
-                break;
-            }
+        while i < self.len && self.text[i] == 45 {
+            i += 1;
         }
         self.index = i;
         return self.parse_item_trim_space(not_space);

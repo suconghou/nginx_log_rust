@@ -5,9 +5,14 @@ nginx access log parse tool
 `cargo build --release`
 
 
-https://github.com/suconghou/nginx_log
+测试数据700MB+, 约200万行
+
+| 版本  | 时间  |
+| ------ | ------   |
+| rust   | 4.289s   |
+
+c, c++, nim 版本请查看 https://github.com/suconghou/nginx_log
 
 
-性能比c语言版本略快
 
 
