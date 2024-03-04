@@ -6,32 +6,32 @@ use std::string::String;
 
 // 仅数字
 fn digital(x: u8, _y: u8) -> bool {
-    return x >= 48 && x <= 57;
+    x >= 48 && x <= 57
 }
 
 // 包含数字和.号
 fn digital_dot(x: u8, _y: u8) -> bool {
-    return (x >= 48 && x <= 57) || x == 46;
+    (x >= 48 && x <= 57) || x == 46
 }
 
 // 包含数字字母和.号或:号（IPv4或IPv6）
 fn digital_dot_colon(x: u8, _y: u8) -> bool {
-    return (x >= 48 && x <= 58) || x == 46 || (x >= 97 && x <= 122);
+    (x >= 48 && x <= 58) || x == 46 || (x >= 97 && x <= 122)
 }
 
 // 包含数字和.号或-号
 fn digital_dot_minus(x: u8, _y: u8) -> bool {
-    return (x >= 48 && x <= 57) || x == 46 || x == 45;
+    (x >= 48 && x <= 57) || x == 46 || x == 45
 }
 
 // 当前是空格，上一个是-或者数字
 fn digital_or_none_end(x: u8, y: u8) -> bool {
-    return !(x == 32 && ((y >= 48 && y <= 57) || y == 45));
+    !(x == 32 && ((y >= 48 && y <= 57) || y == 45))
 }
 
 // 非空格
 fn not_space(x: u8, _y: u8) -> bool {
-    return x != 32;
+    x != 32
 }
 
 struct Line<'a> {
@@ -105,11 +105,11 @@ impl<'a> Line<'a> {
             return None;
         };
         self.index = i + end + 1;
-        return Some(self.origin[i..self.index - 1].into());
+        Some(self.origin[i..self.index - 1].into())
     }
 
     fn parse_remote_addr(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital_dot_colon);
+        self.parse_item_trim_space(digital_dot_colon)
     }
 
     fn parse_remote_user(&mut self) -> Option<String> {
@@ -118,35 +118,35 @@ impl<'a> Line<'a> {
             i += 1;
         }
         self.index = i;
-        return self.parse_item_trim_space(not_space);
+        self.parse_item_trim_space(not_space)
     }
 
     fn parse_time_local(&mut self) -> Option<String> {
-        return self.parse_item_wrap_string(91, 93);
+        self.parse_item_wrap_string(91, 93)
     }
 
     fn parse_request_line(&mut self) -> Option<String> {
-        return self.parse_item_wrap_string(34, 34);
+        self.parse_item_wrap_string(34, 34)
     }
 
     fn parse_status_code(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital);
+        self.parse_item_trim_space(digital)
     }
 
     fn parse_body_bytes_sent(&mut self) -> Option<String> {
-        return self.parse_item_trim_space(digital);
+        self.parse_item_trim_space(digital)
     }
 
     fn parse_http_referer(&mut self) -> Option<String> {
-        return self.parse_item_wrap_string(34, 34);
+        self.parse_item_wrap_string(34, 34)
     }
 
     fn parse_http_user_agent(&mut self) -> Option<String> {
-        return self.parse_item_wrap_string(34, 34);
+        self.parse_item_wrap_string(34, 34)
     }
 
     fn parse_http_x_forwarded_for(&mut self) -> Option<String> {
-        return self.parse_item_wrap_string(34, 34);
+        self.parse_item_wrap_string(34, 34)
     }
 }
 
@@ -253,7 +253,7 @@ impl LineParser {
             .and_modify(|v| *v += 1)
             .or_insert(1);
 
-        return true;
+        true
     }
 }
 
@@ -268,7 +268,7 @@ fn byte_format(n: usize) -> String {
         s /= 1024.0;
         pos += 1;
     }
-    return format!("{:.2} {}", s, unit[pos]);
+    format!("{:.2} {}", s, unit[pos])
 }
 
 fn sort_by_value<K, V>(map: &HashMap<K, V>) -> Vec<(&K, &V)>
