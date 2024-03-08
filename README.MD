@@ -9,7 +9,7 @@ nginx access log parse tool
 
 | 版本  | 时间  |
 | ------ | ------   |
-| rust   | 4.289s   |
+| rust   | 3.944s   |
 
 c, c++, nim 版本请查看 https://github.com/suconghou/nginx_log
 
