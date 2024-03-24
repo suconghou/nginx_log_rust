@@ -101,7 +101,7 @@ impl<'a> Line<'a> {
             return None;
         }
         i += 1;
-        let Some(end) = self.text[i..].iter().position(|&b|b==right) else {
+        let Some(end) = self.text[i..].iter().position(|&b| b == right) else {
             return None;
         };
         self.index = i + end + 1;
@@ -184,15 +184,33 @@ impl LineParser {
     }
     fn parse(&mut self, s: &str) -> bool {
         let mut l = Line::new(s);
-        let Some(remote_addr)=l.parse_remote_addr()else{return false;};
-        let Some(remote_user)=l.parse_remote_user()else{return false;};
-        let Some(time_local)=l.parse_time_local()else{return false;};
-        let Some(request_line)=l.parse_request_line()else{return false;};
-        let Some(status_code)=l.parse_status_code()else{return false;};
-        let Some(body_bytes_sent)=l.parse_body_bytes_sent()else{return false;};
-        let Some(http_referer)=l.parse_http_referer()else{return false;};
-        let Some(http_user_agent)=l.parse_http_user_agent()else{return false;};
-        let Some(http_x_forwarded_for)=l.parse_http_x_forwarded_for()else{return false;};
+        let Some(remote_addr) = l.parse_remote_addr() else {
+            return false;
+        };
+        let Some(remote_user) = l.parse_remote_user() else {
+            return false;
+        };
+        let Some(time_local) = l.parse_time_local() else {
+            return false;
+        };
+        let Some(request_line) = l.parse_request_line() else {
+            return false;
+        };
+        let Some(status_code) = l.parse_status_code() else {
+            return false;
+        };
+        let Some(body_bytes_sent) = l.parse_body_bytes_sent() else {
+            return false;
+        };
+        let Some(http_referer) = l.parse_http_referer() else {
+            return false;
+        };
+        let Some(http_user_agent) = l.parse_http_user_agent() else {
+            return false;
+        };
+        let Some(http_x_forwarded_for) = l.parse_http_x_forwarded_for() else {
+            return false;
+        };
 
         let body_bytes_sent = body_bytes_sent.parse::<usize>().unwrap();
 
