@@ -5,31 +5,37 @@ use std::io::{prelude::*, stdin, BufReader};
 use std::string::String;
 
 // 仅数字
+#[inline]
 fn digital(x: u8, _y: u8) -> bool {
     x >= 48 && x <= 57
 }
 
 // 包含数字和.号
+#[inline]
 fn digital_dot(x: u8, _y: u8) -> bool {
     (x >= 48 && x <= 57) || x == 46
 }
 
 // 包含数字字母和.号或:号（IPv4或IPv6）
+#[inline]
 fn digital_dot_colon(x: u8, _y: u8) -> bool {
     (x >= 48 && x <= 58) || x == 46 || (x >= 97 && x <= 122)
 }
 
 // 包含数字和.号或-号
+#[inline]
 fn digital_dot_minus(x: u8, _y: u8) -> bool {
     (x >= 48 && x <= 57) || x == 46 || x == 45
 }
 
 // 当前是空格，上一个是-或者数字
+#[inline]
 fn digital_or_none_end(x: u8, y: u8) -> bool {
     !(x == 32 && ((y >= 48 && y <= 57) || y == 45))
 }
 
 // 非空格
+#[inline]
 fn not_space(x: u8, _y: u8) -> bool {
     x != 32
 }
@@ -493,17 +499,19 @@ fn get_terminal_width() -> usize {
 
 fn main() -> std::io::Result<()> {
     let mut parser = LineParser::new();
-    let reader: Box<dyn BufRead> = match env::args().nth(1) {
+    let mut reader: Box<dyn BufRead> = match env::args().nth(1) {
         Some(file) => Box::new(BufReader::new(File::open(file)?)),
         None => Box::new(BufReader::new(stdin())),
     };
-    for line in reader.lines() {
-        let Ok(a) = line else {
-            continue;
-        };
-        if !parser.parse(&a) {
-            eprintln!("{}", &a);
+    let mut line = String::with_capacity(512);
+    while reader.read_line(&mut line)? > 0 {
+        if line.ends_with('\n') {
+            line.pop();
         }
+        if !parser.parse(&line) {
+            eprintln!("{}", &line);
+        }
+        line.clear();
     }
     let printer = InfoPrinter::new(parser);
     printer.print();
