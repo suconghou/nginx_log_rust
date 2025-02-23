@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
-use std::io::{prelude::*, stdin, BufReader};
+use std::io::{BufReader, prelude::*, stdin};
 use std::string::String;
 
 // 仅数字
@@ -468,7 +468,7 @@ impl InfoPrinter {
     }
 }
 
-extern "C" {
+unsafe extern "C" {
     fn ioctl(fd: i32, request: u64, ...) -> i32;
 }
 fn get_terminal_width() -> usize {
