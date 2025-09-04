@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BinaryHeap, HashMap};
 use std::env;
 use std::fs::File;
 use std::io::{BufReader, prelude::*, stdin};
@@ -295,15 +295,6 @@ fn byte_format(n: usize) -> String {
     format!("{:.2} {}", s, unit[pos])
 }
 
-fn sort_by_value<K, V>(map: &HashMap<K, V>) -> Vec<(&K, &V)>
-where
-    V: std::cmp::Ord,
-{
-    let mut vec: Vec<(&K, &V)> = map.iter().collect();
-    vec.sort_by(|a, b| b.1.cmp(a.1));
-    vec
-}
-
 fn sort_by_key<K, V>(map: &HashMap<K, V>) -> Vec<(&K, &V)>
 where
     K: std::cmp::Ord,
@@ -311,6 +302,29 @@ where
     let mut vec: Vec<(&K, &V)> = map.iter().collect();
     vec.sort_by(|a, b| a.0.cmp(b.0));
     vec
+}
+fn top_k<'a, K, V>(map: &'a HashMap<K, V>, k: usize) -> Vec<(&'a K, &'a V)>
+where
+    K: Ord + Eq + std::hash::Hash,
+    V: Ord,
+{
+    if k < 1 {
+        return Vec::new();
+    }
+    let mut heap = BinaryHeap::with_capacity(k);
+    for (key, value) in map.iter() {
+        if heap.len() < k {
+            heap.push(std::cmp::Reverse((value, key))); // 小根堆
+        } else if let Some(mut top) = heap.peek_mut() {
+            if value > top.0.0 {
+                *top = std::cmp::Reverse((value, key));
+            }
+        }
+    }
+    heap.into_sorted_vec()
+        .into_iter()
+        .map(|std::cmp::Reverse((v, k))| (k, v))
+        .collect()
 }
 
 struct InfoPrinter {
@@ -356,15 +370,11 @@ impl InfoPrinter {
 
     fn print_stat_long(&self, title: &str, data: &HashMap<String, usize>) {
         println!("\n\x1B[1;34m{}\x1B[00m", title);
-        let sorted = sort_by_value(data);
-        let mut i = 0;
+        let sorted = top_k(data, self.limit);
         let mut n = 0;
         let total_lines = self.parser.total_lines as f64;
         let width = self.terminal_width - 16;
         for item in sorted {
-            if i >= self.limit {
-                break;
-            }
             let x = (100 * item.1) as f64;
             println!(
                 "{:<width$.width$} {:6} {:.2}%",
@@ -373,7 +383,6 @@ impl InfoPrinter {
                 x / total_lines,
                 width = width
             );
-            i += 1;
             n += item.1
         }
         let part1 = format!("{}/{}", n, self.parser.total_lines);
@@ -389,15 +398,11 @@ impl InfoPrinter {
 
     fn print_sent_long(&self, title: &str, data: &HashMap<String, usize>) {
         println!("\n\x1B[1;34m{}\x1B[00m", title);
-        let sorted = sort_by_value(data);
-        let mut i = 0;
+        let sorted = top_k(data, self.limit);
         let mut n = 0;
         let total_bytes = self.parser.total_bytes_sent as f64;
         let width = self.terminal_width - 16 - 6;
         for item in sorted {
-            if i >= self.limit {
-                break;
-            }
             let x = (100 * item.1) as f64;
             println!(
                 "{:<width$.width$} {:>12} {:.2}%",
@@ -406,7 +411,6 @@ impl InfoPrinter {
                 x / total_bytes,
                 width = width
             );
-            i += 1;
             n += item.1
         }
         let part1 = format!(
@@ -425,9 +429,9 @@ impl InfoPrinter {
     }
 
     fn print_code_long(&self, code: &str, data: &HashMap<String, usize>) {
-        let sorted = sort_by_value(data);
+        let sorted = top_k(data, self.limit);
         let mut count = 0;
-        for item in &sorted {
+        for item in data {
             count += item.1;
         }
         let total_lines = self.parser.total_lines as f64;
@@ -438,13 +442,9 @@ impl InfoPrinter {
             count,
             (count * 100) as f64 / total_lines
         );
-        let mut i = 0;
         let mut n = 0;
         let width = self.terminal_width - 16;
         for item in sorted {
-            if i >= self.limit {
-                break;
-            }
             let x = (100 * item.1) as f64;
             println!(
                 "{:<width$.width$} {:6} {:.2}%",
@@ -453,7 +453,6 @@ impl InfoPrinter {
                 x / f_count,
                 width = width
             );
-            i += 1;
             n += item.1
         }
         let part1 = format!("{}/{}", n, f_count);
